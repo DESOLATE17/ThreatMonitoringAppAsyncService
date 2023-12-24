@@ -12,15 +12,20 @@ executor = futures.ThreadPoolExecutor(max_workers=1)
 global cnt
 cnt = 0
 ServerToken = "abahjsvbdwekvnva"
-url = "http://192.168.0.106:8080/monitoring-requests/user-payment-finish"
-headers = {"Server-Token":"abahjsvbdwekvnva"}
+url = "http://192.168.160.12:8080/monitoring-requests/user-payment-finish"
 
+
+def probability_function():
+    if random.random() < 0.8:
+        return "успешно"
+    else:
+        return "отклонено"
 
 def get_receipt(req_body):
     global cnt
     cnt += 1
     time.sleep(5)
-    req_body['Receipt'] = f"Номер чека: {cnt}, Номер заявки:{req_body['requestId']}, Дата:{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}"
+    req_body['receipt'] = f"Статус: {probability_function()}  Номер чека: {cnt}, Номер заявки:{req_body['requestId']}, Дата:{time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}"
     return req_body
 
 def status_callback(task):
@@ -29,12 +34,12 @@ def status_callback(task):
       print(result)
     except futures._base.CancelledError:
       return
-    requests.put(url, data=json.dumps(result), timeout=3,headers=headers)
+    requests.put(url, data=json.dumps(result), timeout=3)
 
 @api_view(['Put'])
 def addPayment(request):
-    if request.headers.get("Server-Token") == ServerToken:
-        req_body = json.loads(request.body)
+    req_body = json.loads(request.body)
+    if req_body["Server-Token"] == ServerToken:
         task = executor.submit(get_receipt, req_body)
         task.add_done_callback(status_callback)        
         return Response(status=status.HTTP_200_OK)
